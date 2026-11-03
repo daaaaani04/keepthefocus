@@ -50,11 +50,24 @@ export async function stopSession(): Promise<StudySession | null> {
   return unwrap(await supabase.rpc('stop_session').maybeSingle<StudySession>());
 }
 
-// Punti totali dell'utente da oggi (fuso orario Europe/Rome, come la vista daily_points).
-export async function getTodayPoints(userId: string): Promise<number> {
-  const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Rome' }).format(new Date());
+export type DailyPoints = { user_id: string; day: string; points: number; minutes: number };
+export type Member = Profile;
+
+export async function getCircleMembers(circleId: string): Promise<Member[]> {
   const rows = unwrap(
-    await supabase.from('daily_points').select('points').eq('user_id', userId).eq('day', today),
-  ) as { points: number }[];
-  return rows.reduce((sum, r) => sum + (r.points ?? 0), 0);
+    await supabase.from('circle_members').select('profiles(id, username)').eq('circle_id', circleId),
+  ) as unknown as { profiles: Profile | null }[];
+  return rows.flatMap((r) => (r.profiles ? [r.profiles] : []));
+}
+
+export async function getRunningSessions(userIds: string[]): Promise<StudySession[]> {
+  if (userIds.length === 0) return [];
+  return unwrap(await supabase.from('study_sessions').select('*').in('user_id', userIds).is('ended_at', null));
+}
+
+export async function getDailyPoints(userIds: string[], sinceDay: string): Promise<DailyPoints[]> {
+  if (userIds.length === 0) return [];
+  return unwrap(
+    await supabase.from('daily_points').select('user_id, day, points, minutes').in('user_id', userIds).gte('day', sinceDay),
+  );
 }

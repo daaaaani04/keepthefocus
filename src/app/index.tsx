@@ -3,16 +3,25 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AuthScreen } from '../components/AuthScreen';
 import { CirclesCard } from '../components/CirclesCard';
+import { LeaderboardCard } from '../components/LeaderboardCard';
+import { ProgressCard } from '../components/ProgressCard';
 import { TimerCard } from '../components/TimerCard';
 import {
+  getCircleMembers,
+  getDailyPoints,
   getMyCircles,
   getMyProfile,
   getRunningSession,
-  getTodayPoints,
+  getRunningSessions,
   type Circle,
+  type DailyPoints,
+  type Member,
   type Profile,
   type StudySession,
 } from '../lib/api';
+import { lastDays, romeDay } from '../lib/dates';
+import { pointsForMinutes } from '../lib/points';
+import { minutesSince, useNow } from '../lib/useLiveMinutes';
 import { useAuth } from '../lib/auth';
 import { isSupabaseConfigured, supabase } from '../lib/supabase';
 import { colors } from '../lib/theme';
@@ -40,34 +49,81 @@ export default function Index() {
   );
 }
 
+// Giorni di storico caricati: bastano per la settimana e per serie fino a 60 giorni.
+const HISTORY_DAYS = 60;
+
 function Home({ userId }: { userId: string }) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [circles, setCircles] = useState<Circle[]>([]);
+  const [selectedCircle, setSelectedCircle] = useState<string | null>(null);
   const [running, setRunning] = useState<StudySession | null>(null);
-  const [todayPoints, setTodayPoints] = useState(0);
+  const [myDays, setMyDays] = useState<DailyPoints[]>([]);
+  const [members, setMembers] = useState<Member[]>([]);
+  const [circleRunning, setCircleRunning] = useState<StudySession[]>([]);
+  const [circleDays, setCircleDays] = useState<DailyPoints[]>([]);
   const [error, setError] = useState<string | null>(null);
 
-  const refresh = useCallback(async () => {
+  const since = lastDays(HISTORY_DAYS)[0];
+  const circleId = selectedCircle ?? circles[0]?.id ?? null;
+
+  const refreshMine = useCallback(async () => {
     try {
-      const [p, c, r, t] = await Promise.all([
+      const [p, c, r, d] = await Promise.all([
         getMyProfile(userId),
         getMyCircles(),
         getRunningSession(userId),
-        getTodayPoints(userId),
+        getDailyPoints([userId], since),
       ]);
       setProfile(p);
       setCircles(c);
       setRunning(r);
-      setTodayPoints(t);
+      setMyDays(d);
       setError(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     }
-  }, [userId]);
+  }, [userId, since]);
+
+  const refreshCircle = useCallback(async () => {
+    if (!circleId) return;
+    try {
+      const m = await getCircleMembers(circleId);
+      const ids = m.map((x) => x.id);
+      const [r, d] = await Promise.all([getRunningSessions(ids), getDailyPoints(ids, since)]);
+      setMembers(m);
+      setCircleRunning(r);
+      setCircleDays(d);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    }
+  }, [circleId, since]);
+
+  const refreshAll = useCallback(() => {
+    refreshMine();
+    refreshCircle();
+  }, [refreshMine, refreshCircle]);
 
   useEffect(() => {
-    refresh();
-  }, [refresh]);
+    refreshMine();
+  }, [refreshMine]);
+  useEffect(() => {
+    refreshCircle();
+  }, [refreshCircle]);
+
+  // Tempo reale: quando qualcuno nel cerchio avvia o ferma il timer, aggiorna tutto.
+  useEffect(() => {
+    const channel = supabase
+      .channel('study_sessions')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'study_sessions' }, () => refreshAll())
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [refreshAll]);
+
+  const now = useNow(running !== null, 30000);
+  const myLivePoints = running ? pointsForMinutes(minutesSince(running.started_at, now)) : 0;
+  const todayPoints = myDays.find((d) => d.day === romeDay())?.points ?? 0;
 
   return (
     <ScrollView contentContainerStyle={styles.content}>
@@ -78,8 +134,18 @@ function Home({ userId }: { userId: string }) {
         </Pressable>
       </View>
       {error ? <Text style={styles.error}>{error}</Text> : null}
-      <TimerCard running={running} todayPoints={todayPoints} onChange={refresh} />
-      <CirclesCard circles={circles} onChange={refresh} />
+      <TimerCard running={running} todayPoints={todayPoints} onChange={refreshAll} />
+      <LeaderboardCard
+        circles={circles}
+        selectedId={circleId}
+        onSelect={setSelectedCircle}
+        members={members}
+        running={circleRunning}
+        days={circleDays}
+        myId={userId}
+      />
+      <ProgressCard days={myDays} livePoints={myLivePoints} />
+      <CirclesCard circles={circles} onChange={refreshAll} />
     </ScrollView>
   );
 }
