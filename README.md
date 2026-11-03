@@ -17,7 +17,7 @@ Fermare il timer chiude la sessione: la successiva riparte da 1 punto al minuto.
 ## Configurazione
 
 1. Nello **SQL Editor** di Supabase esegui `supabase/migrations/0001_init.sql`.
-2. Copia `.env.example` in `.env` e inserisci la chiave *publishable/anon* (Supabase → Project Settings → API). Non usare mai la chiave *secret/service_role*.
+2. `cp .env.example .env` (contiene già URL e chiave *publishable*, che è pubblica per natura). Non mettere mai la chiave *secret/service_role* nell'app.
 3. `npm install`
 4. `npm run web` per aprire l'app nel browser.
 
