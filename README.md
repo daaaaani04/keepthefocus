@@ -4,6 +4,8 @@ App di studio con gli amici: ognuno ha il proprio timer, guadagna punti studiand
 
 Scritta con [Expo](https://expo.dev) (React Native), quindi gira come web app e più avanti si può pubblicare sull'App Store. Database, login e aggiornamenti in tempo reale sono su [Supabase](https://supabase.com).
 
+**Prova l'app:** https://daaaaani04.github.io/keepthefocus/
+
 ## Regola dei punti
 
 | Minuti consecutivi | Punti al minuto |
@@ -26,6 +28,10 @@ Fermare il timer chiude la sessione: la successiva riparte da 1 punto al minuto.
 - `npm run web`: avvia l'app nel browser
 - `npm run typecheck`: controllo dei tipi
 - `npm run build:web`: crea la versione web statica in `dist/`
+
+## Pubblicazione
+
+Ogni push su `main` pubblica la web app su GitHub Pages (`.github/workflows/deploy-web.yml`). Serve una sola impostazione nella repo: Settings → Pages → Source: **GitHub Actions**.
 
 ## Struttura
 

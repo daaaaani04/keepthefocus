@@ -27,6 +27,9 @@
     "plugins": [
       "expo-router"
     ],
-    "scheme": "keepthefocus"
+    "scheme": "keepthefocus",
+    "experiments": {
+      "baseUrl": "/keepthefocus"
+    }
   }
 }
