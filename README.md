@@ -27,6 +27,7 @@ Fermare il timer chiude la sessione: la successiva riparte da 1 punto al minuto.
 
 - `npm run web`: avvia l'app nel browser
 - `npm run typecheck`: controllo dei tipi
+- `npm test`: test della regola dei punti (Vitest)
 - `npm run build:web`: crea la versione web statica in `dist/`
 
 ## Pubblicazione

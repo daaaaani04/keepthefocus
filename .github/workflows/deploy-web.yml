@@ -25,6 +25,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx tsc --noEmit
+      - run: npm test
       # La chiave publishable di Supabase è pubblica per natura, quindi sta in .env.example.
       - run: cp .env.example .env
       - run: npx expo export --platform web
